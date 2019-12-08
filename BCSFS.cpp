@@ -68,16 +68,36 @@ int BCSFS::bcsfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
     DIR *dir;
     struct dirent *de;
     dir = reinterpret_cast<DIR *>(fi->fh);
-
+    int ret= 0;
     while ((de = readdir(dir))!= nullptr){
-        int ret = filler(buf,de->d_name, nullptr,0,FUSE_FILL_DIR_PLUS);
+        ret = filler(buf,de->d_name, nullptr,0,FUSE_FILL_DIR_PLUS);
         if(ret!=0){
             return -errno;
         }
     }
 
+    return ret;
+}
+
+
+int BCSFS::bcsfs_open(const char * path, struct fuse_file_info *fi) {
+    puts("#bcsfs_open call");
+    string fpath = fullpath(path);
+    int fd = open(fpath.c_str(),fi->flags);
+    if(fd<0){
+        return -errno;
+    }
+    fi->fh = fd;
     return 0;
 }
+
+int BCSFS::bcsfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+    puts("#bcsfs_read call");
+    string fpath = fullpath(path);
+
+    return 0;
+}
+
 
 
 

@@ -24,8 +24,10 @@ public:
     static int bcsfs_opendir(const char *, struct fuse_file_info *);
     static int bcsfs_readdir(const char *, void *, fuse_fill_dir_t, off_t,
                              struct fuse_file_info *, enum fuse_readdir_flags);
-    static int bcsfs_access(const char *, int);
     static int bcsfs_releasedir(const char *, struct fuse_file_info *);
+    static int bcsfs_access(const char *, int);
+    static int bcsfs_open(const char *, struct fuse_file_info *);
+    static int bcsfs_read(const char *, char *, size_t, off_t, struct fuse_file_info *);
 
     int run(int argc, char **argv) {
         fuse_main(argc, argv, Operations(), nullptr);
