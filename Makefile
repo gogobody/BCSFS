@@ -10,7 +10,7 @@ $(shell mkdir -p $(OBJDIR))
 OBJS = $(OBJDIR)/BCSFS.o $(OBJDIR)/main.o
 
 $(PROG) : $(OBJS)
-	$(CC) $(OBJS) $(LDFLAGS) -o $(PROG)
+	$(CC) $(OBJS) $(LDFLAGS) -o $(PROG) -lulockmgr
 
 -include $(OBJS:.o=.d)
 

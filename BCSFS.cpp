@@ -1,12 +1,20 @@
 //
 // Created by Administrator on 2019/12/6.
 //
-
+//#ifdef HAVE_LIBULOCKMGR
+extern "C"{
+#include <ulockmgr.h>
+}
+//#endif
 #include <cstring>
 #include <cstdio>
 #include <iostream>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/xattr.h>
+
+#include <sys/file.h>
+
 #include "BCSFS.h"
 
 using namespace std;
@@ -218,14 +226,205 @@ int BCSFS::bcsfs_utimens(const char *path, const struct timespec tv[2],struct fu
     return 0;
 }
 
+//change the file size
+int BCSFS::bcsfs_truncate(const char *path, off_t newsize, struct fuse_file_info *fi) {
+    puts("#bcsfs_truncate call");
+    int ret = 0;
+    string fpath = fullpath(path);
+    if(fi){
+        ret=ftruncate(fi->fh,newsize);
+    }else{
+        ret = truncate(fpath.c_str(),newsize);
+    }
+    if(ret<0) ret = -errno;
+    return ret;
+}
+
 int BCSFS::bcsfs_symlink(const char *from, const char *to) {
+    puts("#bcsfs_symlink call");
+
     int res;
-    res = symlink(from, to);
+    string pfrom = fullpath(from);
+    string pto = fullpath(to);
+
+    res = symlink(pfrom.c_str(), pto.c_str());
     if (res == -1)
         return -errno;
 
     return 0;
 }
+
+int BCSFS::bcsfs_link(const char *from, const char *to) {
+    puts("#bcsfs_link call");
+    int res;
+    string pfrom = fullpath(from);
+    string pto = fullpath(to);
+    res = link(pfrom.c_str(), pto.c_str());
+    if (res == -1)
+        return -errno;
+    return 0;
+}
+
+int BCSFS::bcsfs_readlink(const char *path, char *buf, size_t size) {
+    puts("#bcsfs_readlink call");
+    int res;
+    string fpath = fullpath(path);
+    res = readlink(fpath.c_str(), buf, size - 1);
+    if (res == -1)
+        return -errno;
+
+    buf[res] = '\0';
+    return 0;
+}
+
+int BCSFS::bcsfs_rename(const char *path, const char *newpath, unsigned int flags) {
+    puts("#bcsfs_rename call");
+    cout<<flags<<endl;
+    int ret = 0;
+    string fpath = fullpath(path);
+    string fnewpath = fullpath(newpath);
+    ret = rename(fpath.c_str(), fnewpath.c_str());
+    if (ret < 0)
+        ret = -errno;
+    return ret;
+
+}
+
+int BCSFS::bcsfs_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi) {
+    puts("#bcsfs_chown call");
+    int ret = 0;
+    string fpath = fullpath(path);
+    if(fi){
+        ret = fchown(fi->fh,uid,gid);
+    }else{
+        ret = chown(fpath.c_str(), uid, gid);
+    }
+    if (ret < 0)
+        ret = -errno;
+
+    return ret;
+}
+
+int BCSFS::bcsfs_chmod(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    puts("#bcsfs_chmod call");
+    int ret = 0;
+    string fpath = fullpath(path);
+    if(fi){
+        ret = fchmod(fi->fh,mode);
+    }else{
+        ret = chmod(fpath.c_str(), mode);
+    }
+    if (ret < 0)
+        ret = -errno;
+
+    return ret;
+}
+
+int BCSFS::bcsfs_statfs(const char *path, struct statvfs *statv) {
+    puts("#bcsfs_statfs call");
+    int ret;
+    string fpath = fullpath(path);
+    ret = statvfs(fpath.c_str(), statv);
+    if (ret == -1)
+        return -errno;
+    return 0;
+}
+
+int BCSFS::bcsfs_getxattr(const char *path, const char *name, char *value, size_t size) {
+    puts("#bcsfs_getxattr call");
+    string fpath = fullpath(path);
+    int ret = lgetxattr(fpath.c_str(), name, value, size);
+
+    if (ret == -1)
+        return -errno;
+    return ret;
+}
+
+int BCSFS::bcsfs_setxattr(const char *path, const char *name, const char *value, size_t size, int flags) {
+    puts("#bcsfs_setxattr call");
+    string fpath = fullpath(path);
+    int ret = lsetxattr(fpath.c_str(), name, value, size, flags);
+    if (ret == -1)
+        return -errno;
+    return 0;
+}
+
+int BCSFS::bcsfs_listxattr(const char *path, char *list, size_t size) {
+    puts("#bcsfs_listxattr call");
+    string fpath = fullpath(path);
+    int ret = llistxattr(fpath.c_str(), list, size);
+    if (ret == -1)
+        return -errno;
+    return ret;
+}
+
+int BCSFS::bcsfs_removexattr(const char *path, const char *name) {
+    puts("#bcsfs_removexattr call");
+    string fpath = fullpath(path);
+    int ret = lremovexattr(fpath.c_str(), name);
+    if (ret == -1)
+        return -errno;
+    return 0;
+}
+
+//fallocate --help Allocates space for an open file
+int BCSFS::bcsfs_fallocate(const char *path, int mode, off_t offset, off_t length, struct fuse_file_info *fi) {
+    puts("#bcsfs_fallocate call");
+
+    if (mode)
+        return -EOPNOTSUPP;
+
+    return -posix_fallocate(fi->fh, offset, length);
+}
+
+
+int BCSFS::bcsfs_read_buf(const char *path, struct fuse_bufvec **bufp,size_t size, off_t offset, struct fuse_file_info *fi) {
+    puts("#bcsfs_read_buf call");
+    struct fuse_bufvec *src;
+    (void) path;
+
+    src = static_cast<fuse_bufvec *>(malloc(sizeof(struct fuse_bufvec)));
+    if (src == nullptr)
+        return -ENOMEM;
+
+    *src = FUSE_BUFVEC_INIT(size);
+
+    src->buf[0].flags = static_cast<fuse_buf_flags>(FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    src->buf[0].fd = fi->fh;
+    src->buf[0].pos = offset;
+
+    *bufp = src;
+
+    return 0;
+}
+
+int BCSFS::bcsfs_write_buf(const char *path, struct fuse_bufvec *buf, off_t offset, struct fuse_file_info *fi) {
+    puts("#bcsfs_write_buf call");
+
+    struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
+    dst.buf[0].flags = static_cast<fuse_buf_flags>(FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK);
+    dst.buf[0].fd = fi->fh;
+    dst.buf[0].pos = offset;
+
+    return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
+}
+
+int BCSFS::bcsfs_lock(const char *path, struct fuse_file_info *fi, int cmd, struct flock *lock) {
+    (void) path;
+    return ulockmgr_op(fi->fh, cmd, lock, &fi->lock_owner, sizeof(fi->lock_owner));
+}
+
+int BCSFS::bcsfs_flock(const char *path, struct fuse_file_info *fi, int op) {
+    int res;
+    (void) path;
+
+    res = flock(fi->fh, op);
+    if (res == -1)
+        return -errno;
+
+    return 0;
+}
+
 
 
 

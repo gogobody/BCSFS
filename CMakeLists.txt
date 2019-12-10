@@ -20,8 +20,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DFUSE_USE_VERSION=32")
 
 
-find_package(FUSE3 REQUIRED)
-include_directories(${FUSE_INCLUDE_DIR})
+#find_package(FUSE3 REQUIRED)
+#include_directories(${FUSE_INCLUDE_DIR})
 
 add_executable(BCSFS main.cpp BCSFS.cpp BCSFS.h)
-target_link_libraries(main ${FUSE_LIBRARIES})
+#target_link_libraries(main ${FUSE_LIBRARIES})
